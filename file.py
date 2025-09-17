@@ -1,73 +1,58 @@
 import os
 import google.generativeai as genai
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-# ✅ Load environment variables
+# Load environment variables
 load_dotenv()
 
-app = Flask(__name__, static_folder=".", static_url_path="")
+# Initialize Flask app
+app = Flask(__name__, static_folder='static')
+CORS(app)  # ✅ Allow requests from all origins
 
-# ✅ Allow only your frontend domain
-CORS(app, resources={
-    r"/chat": {"origins": "https://my-chatbot-3pmw.onrender.com"}
-})
-
-# ✅ Load API key
+# Load API key
 api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
-    raise Exception("GEMINI_API_KEY environment variable is not set!")
+    raise RuntimeError("GEMINI_API_KEY environment variable is not set!")
 
 genai.configure(api_key=api_key)
 
-# ✅ Initialize Gemini model
+# Initialize Gemini model
 model = genai.GenerativeModel(model_name="gemini-2.5-flash")
 
-# ✅ Serve frontend (index.html)
+# Serve frontend files
 @app.route("/")
 def home():
-    return send_from_directory(".", "index.html")
+    return app.send_static_file("index.html")
 
-# ✅ Chat endpoint (POST + OPTIONS for preflight CORS)
-@app.route("/chat", methods=["POST", "OPTIONS"])
+@app.route("/<path:path>")
+def static_files(path):
+    return app.send_static_file(path)
+
+# Chat endpoint
+@app.route("/chat", methods=["POST"])
 def chat():
-    if request.method == "OPTIONS":
-        # Preflight CORS request
-        response = jsonify({"status": "ok"})
-        response.headers.add("Access-Control-Allow-Origin", "https://my-chatbot-3pmw.onrender.com")
-        response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
-        response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
-        return response, 200
-
     try:
         data = request.get_json()
         if not data or "message" not in data:
-            return jsonify({"error": "Invalid request format"}), 400
+            return jsonify({"error": "Invalid request: 'message' key is missing"}), 400
 
         user_message = data["message"].strip()
         if not user_message:
             return jsonify({"error": "Empty message"}), 400
 
-        print("👉 User message:", user_message)  # Debug log
+        print(f"User message: {user_message}")
 
-        # ✅ Call Gemini API (string, not list)
-        response = model.generate_content(user_message)
-
-        print("👉 Gemini raw response:", response)  # Debug log
-
+        # Generate response using Gemini API
+        response = model.generate_content([user_message])
         return jsonify({"reply": response.text.strip()})
-    #except Exception as e:
-        # Print error in logs for Render
-        #print("❌ Exception:", e)
-       # return jsonify({"error": "Server error occurred"}), 500
+
     except Exception as e:
-        error_message = str(e)
-        print("❌ Exception:", error_message)  # Logs in Render
-        return jsonify({"error": f"Server error: {error_message}"}), 500
+        print(f"❌ Exception occurred: {e}")
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
 
-
-# ✅ Render deployment entry
+# Render deployment port
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, debug=False)
