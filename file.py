@@ -46,5 +46,13 @@ def chat():
         print("Exception occurred:", e)
         return jsonify({"error": "Server error occurred"}), 500
 
+#if __name__ == "__main__":
+    #app.run(debug=True)
+#if __name__ == "__main__":
+   # import os
+   # port = int(os.environ.get("PORT", 5000))  # Use Render’s PORT or default 5000 locally
+    #app.run(host="0.0.0.0", port=port, debug=False)
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))  # Render provides PORT
+    app.run(host="0.0.0.0", port=port)
+
