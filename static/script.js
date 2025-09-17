@@ -29,7 +29,9 @@ function addTypingIndicator() {
 }
 
 function removeTypingIndicator(typingElem) {
-    messagesContainer.removeChild(typingElem);
+    if (typingElem && typingElem.parentNode) {
+        messagesContainer.removeChild(typingElem);
+    }
 }
 
 // Display message letter by letter
@@ -56,13 +58,18 @@ function sendMessage() {
 
     const typingIndicator = addTypingIndicator();
 
-    // ✅ Correct backend URL
-    fetch("https://my-chatbot-backend.onrender.com/chat", {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+    // ✅ Your deployed backend endpoint (must match Render backend)
+    fetch("https://my-chatbot-sgej.onrender.com/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text })
     })
-    .then(res => res.json())
+    .then(res => {
+        if (!res.ok) {
+            throw new Error(`HTTP error! Status: ${res.status}`);
+        }
+        return res.json();
+    })
     .then(data => {
         removeTypingIndicator(typingIndicator);
         if (data.reply) {
@@ -75,11 +82,13 @@ function sendMessage() {
     .catch(err => {
         removeTypingIndicator(typingIndicator);
         addMessage("❌ Sorry, something went wrong.", 'bot');
-        console.error('Error:', err);
+        console.error("Fetch error:", err);
     });
 }
 
 // Send message on Enter key
 messageInput.addEventListener("keypress", function(event) {
-    if (event.key === "Enter") sendMessage();
+    if (event.key === "Enter") {
+        sendMessage();
+    }
 });
